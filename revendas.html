@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel de Revendas</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1a1d23;--mut:#6b7280;--pri:#2563eb;--bd:#e3e6ea;--err:#dc2626;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1115;--card:#181b21;--tx:#eef0f3;--mut:#9aa1ad;--pri:#5b8cff;--bd:#2a2e36;--err:#f87171}}
+:root[data-theme="dark"]{--bg:#0f1115;--card:#181b21;--tx:#eef0f3;--mut:#9aa1ad;--pri:#5b8cff;--bd:#2a2e36;--err:#f87171}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45}
+.wrap{max-width:520px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;margin:8px 0 4px}h2{font-size:17px;margin:0 0 12px}
+p.s{color:var(--mut);margin:0 0 16px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:16px}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+input,textarea{width:100%;padding:11px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+button{font:inherit;border:0;border-radius:10px;padding:11px 16px;background:var(--pri);color:#fff;cursor:pointer;width:100%;margin-top:14px}
+button.g{background:transparent;color:var(--pri);border:1px solid var(--bd);width:auto;margin:0;padding:6px 12px;font-size:13px}
+.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{margin:0;background:var(--card);color:var(--tx);border:1px solid var(--bd)}
+.tabs button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.msg{color:var(--err);font-size:13px;margin-top:10px;min-height:16px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.item{border-top:1px solid var(--bd);padding:12px 0;display:flex;justify-content:space-between;gap:10px}
+.item:first-child{border-top:0}.item b{display:block}.item small{color:var(--mut)}
+.empty{color:var(--mut);font-size:14px;text-align:center;padding:12px}
+.note{font-size:12px;color:var(--mut);text-align:center;margin-top:20px}
+.bd{font-size:11px;background:var(--pri);color:#fff;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:middle}select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}.item select{width:auto;font-size:13px;padding:6px}.sum{display:flex;gap:10px;margin-bottom:16px}.sum div{flex:1;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;font-size:12px;color:var(--mut)}.sum b{display:block;font-size:18px;color:var(--tx)}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+var KU='rv_users',KS='rv_session',KR='rv_resellers',KO='rv_orders';
+function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
+var mem={users:load(KU,[]),session:load(KS,null),res:load(KR,[]),ord:load(KO,[])};
+var mode='login',err='',ST=['Novo','Em andamento','Concluído','Cancelado'];
+async function hash(s){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('')}
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML}
+function $(id){return document.getElementById(id)}
+function brl(n){return Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function stSel(o){return '<select data-st="'+o.id+'">'+ST.map(function(x){return '<option'+(x===o.status?' selected':'')+'>'+x+'</option>'}).join('')+'</select>'}
+function render(){
+  var a=$('app');
+  if(!mem.session){
+    a.innerHTML='<h1>Painel de Revendas</h1><p class="s">Crie sua conta para cadastrar revendas e fazer pedidos.</p>'+
+    '<div class="tabs"><button id="t1" class="'+(mode==='login'?'on':'')+'">Entrar</button><button id="t2" class="'+(mode==='reg'?'on':'')+'">Criar conta</button></div>'+
+    '<div class="card">'+(mode==='reg'?'<label>Nome</label><input id="nm" autocomplete="name">':'')+
+    '<label>'+(mode==='reg'?'E-mail':'Usuário ou e-mail')+'</label><input id="em" type="text" autocapitalize="none" autocomplete="username">'+
+    '<label>Senha</label><input id="pw" type="password" autocomplete="'+(mode==='reg'?'new-password':'current-password')+'">'+
+    '<div class="msg">'+esc(err)+'</div><button id="go">'+(mode==='reg'?'Criar conta':'Entrar')+'</button></div>'+
+    
+    '<p class="note">Protótipo: os dados ficam salvos apenas neste navegador.</p>';
+    $('t1').onclick=function(){mode='login';err='';render()};
+    $('t2').onclick=function(){mode='reg';err='';render()};
+    $('go').onclick=auth;return;
+  }
+  var u=mem.session,adm=u.role==='admin';
+  var top='<div class="top"><div><h1>Olá, '+esc(u.name)+(adm?'<span class="bd">Admin</span>':'')+'</h1><p class="s" style="margin:0">'+esc(u.email)+'</p></div><button class="g" id="out">Sair</button></div>';
+  if(adm){
+    var tot=mem.ord.reduce(function(t,o){return o.status==='Cancelado'?t:t+o.total},0);
+    a.innerHTML=top+'<div class="sum" style="margin-top:16px"><div><b>'+mem.ord.length+'</b>Pedidos</div><div><b>'+brl(tot)+'</b>Total (sem cancelados)</div><div><b>'+mem.users.length+'</b>Usuários</div></div>'+
+    '<div class="card"><h2>Todos os pedidos</h2>'+(mem.ord.length?mem.ord.map(function(o){return '<div class="item"><div><b>#'+o.id.slice(-5)+' · '+esc(o.product)+' ×'+o.qty+'</b><small>'+esc(o.resName)+' · por '+esc(o.ownerName)+'</small><small>'+brl(o.total)+' · '+esc(o.date)+'</small></div>'+stSel(o)+'</div>'}).join(''):'<div class="empty">Nenhum pedido ainda.</div>')+'</div>';
+  }else{
+    var mr=mem.res.filter(function(r){return r.owner===u.email}),mo=mem.ord.filter(function(o){return o.owner===u.email});
+    a.innerHTML=top+
+    '<div class="card" style="margin-top:16px"><h2>Cadastrar revenda</h2><label>Nome da revenda</label><input id="rn"><label>Cidade / Estado</label><input id="rc"><label>Telefone / WhatsApp</label><input id="rt" type="tel"><div class="msg">'+esc(err&&err.r||'')+'</div><button id="add">Salvar revenda</button></div>'+
+    '<div class="card"><h2>Minhas revendas ('+mr.length+')</h2>'+(mr.length?mr.map(function(r){return '<div class="item"><div><b>'+esc(r.name)+'</b><small>'+esc(r.city)+(r.phone?' · '+esc(r.phone):'')+'</small></div><button class="g" data-id="'+r.id+'">Excluir</button></div>'}).join(''):'<div class="empty">Nenhuma revenda ainda.</div>')+'</div>'+
+    '<div class="card"><h2>Novo pedido</h2>'+(mr.length?'<label>Revenda</label><select id="or">'+mr.map(function(r){return '<option value="'+r.id+'">'+esc(r.name)+'</option>'}).join('')+'</select><label>Produto</label><input id="op"><label>Quantidade</label><input id="oq" type="number" min="1" value="1"><label>Valor unitário (R$)</label><input id="ov" type="number" min="0" step="0.01"><div class="msg">'+esc(err&&err.o||'')+'</div><button id="ao">Enviar pedido</button>':'<div class="empty">Cadastre uma revenda para fazer pedidos.</div>')+'</div>'+
+    '<div class="card"><h2>Meus pedidos ('+mo.length+')</h2>'+(mo.length?mo.map(function(o){return '<div class="item"><div><b>'+esc(o.product)+' ×'+o.qty+'</b><small>'+esc(o.resName)+' · '+brl(o.total)+'</small></div><small>'+esc(o.status)+'</small></div>'}).join(''):'<div class="empty">Nenhum pedido ainda.</div>')+'</div>';
+    $('add').onclick=addRes;if($('ao'))$('ao').onclick=addOrd;
+    Array.prototype.forEach.call(a.querySelectorAll('[data-id]'),function(b){b.onclick=function(){mem.res=mem.res.filter(function(r){return r.id!==b.getAttribute('data-id')});save(KR,mem.res);render()}});
+  }
+  $('out').onclick=function(){mem.session=null;save(KS,null);err='';render()};
+  Array.prototype.forEach.call(a.querySelectorAll('[data-st]'),function(sl){sl.onchange=function(){var o=mem.ord.filter(function(x){return x.id===sl.getAttribute('data-st')})[0];o.status=sl.value;save(KO,mem.ord);render()}});
+}
+async function auth(){
+  var em=$('em').value.trim().toLowerCase(),pw=$('pw').value,nm=mode==='reg'?$('nm').value.trim():'';
+  if(em!=='admin'&&!/^\S+@\S+\.\S+$/.test(em)){err='E-mail inválido.';return render()}
+  if(mode==='reg'&&pw.length<6){err='A senha precisa ter ao menos 6 caracteres.';return render()}
+  var h=await hash(pw+em);
+  if(mode==='reg'){
+    if(!nm){err='Informe seu nome.';return render()}
+    if(em==='admin'||mem.users.some(function(u){return u.email===em})){err='Este e-mail já tem conta.';return render()}
+    var role='user';
+    mem.users.push({name:nm,email:em,h:h,role:role});save(KU,mem.users);
+    mem.session={name:nm,email:em,role:role};
+  }else{
+    var u=mem.users.filter(function(x){return x.email===em&&x.h===h})[0];
+    if(!u){err='E-mail ou senha incorretos.';return render()}
+    mem.session={name:u.name,email:em,role:u.role||'user'};
+  }
+  save(KS,mem.session);err='';render();
+}
+function addRes(){
+  var n=$('rn').value.trim(),c=$('rc').value.trim();
+  if(!n||!c){err={r:'Preencha nome e cidade.'};return render()}
+  mem.res.unshift({id:String(Date.now()),owner:mem.session.email,name:n,city:c,phone:$('rt').value.trim()});
+  save(KR,mem.res);err='';render();
+}
+function addOrd(){
+  var p=$('op').value.trim(),q=parseInt($('oq').value,10),v=parseFloat($('ov').value),r=mem.res.filter(function(x){return x.id===$('or').value})[0];
+  if(!p||!(q>0)||!(v>=0)){err={o:'Preencha produto, quantidade e valor.'};return render()}
+  mem.ord.unshift({id:String(Date.now()),owner:mem.session.email,ownerName:mem.session.name,resName:r.name,product:p,qty:q,total:q*v,status:'Novo',date:new Date().toLocaleDateString('pt-BR')});
+  save(KO,mem.ord);err='';render();
+}
+(async function(){if(!mem.users.some(function(u){return u.email==='admin'})){mem.users.unshift({name:'Administrador',email:'admin',h:await hash('adminadmin'),role:'admin'});save(KU,mem.users)}render()})();
+</script>
+</body>
+</html>
